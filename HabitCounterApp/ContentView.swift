@@ -9,6 +9,7 @@ import SwiftUI
 
 class MainCounterViewModel: ObservableObject {
     @AppStorage("startDate") var startDate = Date()
+    @AppStorage("mainRecord") private var record: Int = 0
 
     var dayCount: Int {
         let calendar = Calendar.current
@@ -16,6 +17,17 @@ class MainCounterViewModel: ObservableObject {
         let startOfToday = calendar.startOfDay(for: Date())
         let diff = calendar.dateComponents([.day], from: startOfStartDate, to: startOfToday).day ?? 0
         return diff + 1
+    }
+
+    var recordText: String {
+        if dayCount > record {
+            record = dayCount
+        }
+        return "Record: \(record) days"
+    }
+    
+    func resetRecord() {
+        record = dayCount
     }
 }
 
@@ -33,10 +45,14 @@ class SubHabit: Identifiable, ObservableObject {
     let id = UUID()
     let title: String
     @Published var startDate: Date
+    @Published var recordVersion = 0
+    @Published var recordValue: Int
     
     init(title: String, startDate: Date) {
         self.title = title
         self.startDate = startDate
+        let key = "record_\(title)"
+        self.recordValue = UserDefaults.standard.integer(forKey: key)
     }
 
     var dayCount: Int {
@@ -48,6 +64,24 @@ class SubHabit: Identifiable, ObservableObject {
             return max(1, days + 1)
         } else {
             return 1
+        }
+    }
+
+    var record: Int {
+        recordValue
+    }
+    
+    func resetRecord() {
+        let key = "record_\(title)"
+        recordValue = dayCount
+        UserDefaults.standard.set(recordValue, forKey: key)
+    }
+    
+    func updateRecordIfNeeded() {
+        let key = "record_\(title)"
+        if dayCount > recordValue {
+            recordValue = dayCount
+            UserDefaults.standard.set(recordValue, forKey: key)
         }
     }
 }
@@ -72,9 +106,14 @@ struct SubHabitView: View {
                 
                 Spacer()
                 
-                Text("Day \(counter.dayCount)")
-                    .font(.system(size: 36, weight: .bold))
-                    .foregroundColor(.primary)
+                VStack(alignment: .trailing) {
+                    Text("Day \(counter.dayCount)")
+                        .font(.system(size: 36, weight: .bold))
+                        .foregroundColor(.primary)
+                    Text("Record: \(counter.recordValue) days")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             .contentShape(Rectangle())
             .onTapGesture {
@@ -127,6 +166,25 @@ struct ContentView: View {
 
     var body: some View {
         VStack(spacing: 24) {
+            HStack {
+                Spacer()
+                Menu {
+                    Button("Reset Main Record") {
+                        mainVM.resetRecord()
+                    }
+
+                    ForEach(subHabitVM.subHabits) { wrapper in
+                        Button("Reset \(wrapper.counter.title) Record") {
+                            wrapper.counter.resetRecord()
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .imageScale(.large)
+                        .padding(.trailing)
+                }
+            }
+
             Spacer()
 
             VStack(spacing: 4) {
@@ -136,6 +194,9 @@ struct ContentView: View {
 
                 Text("Day \(mainVM.dayCount)")
                     .font(.system(size: 52, weight: .bold))
+                Text(mainVM.recordText)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             .padding()
             .frame(maxWidth: .infinity)
@@ -149,6 +210,17 @@ struct ContentView: View {
             Spacer()
 
             VStack(spacing: 16) {
+                HStack {
+                    Text("Start Date:")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
+                    Spacer()
+
+                    DatePicker("", selection: $mainVM.startDate, in: ...Date(), displayedComponents: .date)
+                        .datePickerStyle(.compact)
+                }
+
                 Button(action: {
                     showMainResetConfirmation = true
                 }) {
@@ -166,19 +238,7 @@ struct ContentView: View {
                     }
                     Button("Cancel", role: .cancel) { }
                 }
-
-                HStack {
-                    Text("Start Date:")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-
-                    Spacer()
-
-                    DatePicker("", selection: $mainVM.startDate, in: ...Date(), displayedComponents: .date)
-                        .datePickerStyle(.compact)
-                }
             }
-            .padding(.horizontal)
 
             VStack(alignment: .leading, spacing: 8) {
                 Divider()
