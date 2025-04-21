@@ -14,7 +14,8 @@ class MainCounterViewModel: ObservableObject {
         let calendar = Calendar.current
         let startOfStartDate = calendar.startOfDay(for: startDate)
         let startOfToday = calendar.startOfDay(for: Date())
-        return (calendar.dateComponents([.day], from: startOfStartDate, to: startOfToday).day ?? 0) + 1
+        let diff = calendar.dateComponents([.day], from: startOfStartDate, to: startOfToday).day ?? 0
+        return diff + 1
     }
 }
 
@@ -42,7 +43,12 @@ class SubHabit: Identifiable, ObservableObject {
         let calendar = Calendar.current
         let startOfStartDate = calendar.startOfDay(for: startDate)
         let startOfToday = calendar.startOfDay(for: Date())
-        return calendar.dateComponents([.day], from: startOfStartDate, to: startOfToday).day ?? 0 + 1
+
+        if let days = calendar.dateComponents([.day], from: startOfStartDate, to: startOfToday).day {
+            return max(1, days + 1)
+        } else {
+            return 1
+        }
     }
 }
 
