@@ -8,8 +8,20 @@
 import SwiftUI
 
 class MainCounterViewModel: ObservableObject {
-    @AppStorage("startDate") var startDate = Date()
-    @AppStorage("mainRecord") private var record: Int = 0
+    @Published var startDate: Date
+
+    init() {
+        self.startDate = UserDefaults.standard.object(forKey: "startDate") as? Date ?? Date()
+    }
+
+    var record: Int {
+        get {
+            UserDefaults.standard.integer(forKey: "mainRecord")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "mainRecord")
+        }
+    }
 
     var dayCount: Int {
         let calendar = Calendar.current
@@ -20,14 +32,17 @@ class MainCounterViewModel: ObservableObject {
     }
 
     var recordText: String {
+        return "Record: \(record) days"
+    }
+
+    func resetRecord() {
+        record = dayCount
+    }
+
+    func updateRecordIfNeeded() {
         if dayCount > record {
             record = dayCount
         }
-        return "Record: \(record) days"
-    }
-    
-    func resetRecord() {
-        record = dayCount
     }
 }
 
@@ -194,6 +209,9 @@ struct ContentView: View {
 
                 Text("Day \(mainVM.dayCount)")
                     .font(.system(size: 52, weight: .bold))
+                    .onAppear {
+                        mainVM.updateRecordIfNeeded()
+                    }
                 Text(mainVM.recordText)
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -219,6 +237,10 @@ struct ContentView: View {
 
                     DatePicker("", selection: $mainVM.startDate, in: ...Date(), displayedComponents: .date)
                         .datePickerStyle(.compact)
+                        .onChange(of: mainVM.startDate) { newDate in
+                            UserDefaults.standard.set(newDate, forKey: "startDate")
+                            mainVM.updateRecordIfNeeded()
+                        }
                 }
 
                 Button(action: {
